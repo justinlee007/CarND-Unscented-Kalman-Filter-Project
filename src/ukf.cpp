@@ -12,6 +12,8 @@ using std::vector;
  * Initializes Unscented Kalman filter
  */
 UKF::UKF() {
+  is_initialized_ = false;
+
   // if this is false, laser measurements will be ignored (except during init)
   use_laser_ = true;
 
@@ -24,11 +26,17 @@ UKF::UKF() {
   // initial covariance matrix
   P_ = MatrixXd(5, 5);
 
+  // predicted sigma points matrix
+  Xsig_pred_;
+
+  // time when the state is true, in us
+  time_us_;
+
   // Process noise standard deviation longitudinal acceleration in m/s^2
-  std_a_ = 30;
+  std_a_ = 0.2;
 
   // Process noise standard deviation yaw acceleration in rad/s^2
-  std_yawdd_ = 30;
+  std_yawdd_ = 0.2;
 
   // Laser measurement noise standard deviation position1 in m
   std_laspx_ = 0.15;
@@ -40,18 +48,34 @@ UKF::UKF() {
   std_radr_ = 0.3;
 
   // Radar measurement noise standard deviation angle in rad
-  std_radphi_ = 0.03;
+  std_radphi_ = 0.0175;
 
   // Radar measurement noise standard deviation radius change in m/s
-  std_radrd_ = 0.3;
+  std_radrd_ = 0.1;
 
   /**
-  TODO:
+   * TODO: Complete the initialization. See ukf.h for other member properties.
+   * Hint: one or more values initialized above might be wildly off...
+   */
 
-  Complete the initialization. See ukf.h for other member properties.
+  // Weights of sigma points
+  weights_;
 
-  Hint: one or more values initialized above might be wildly off...
-  */
+  // State dimension
+  n_x_ = 5;
+
+  // Augmented state dimension
+  n_aug_ = 7;
+
+  // Sigma point spreading parameter
+  lambda_ = 3 - n_aug_;
+
+  // the current NIS for radar
+  NIS_radar_;
+
+  // the current NIS for laser
+  NIS_laser_;
+
 }
 
 UKF::~UKF() {}
