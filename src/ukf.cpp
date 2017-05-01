@@ -42,7 +42,7 @@ UKF::UKF() {
   Xsig_aug_ = MatrixXd(n_aug_, 2 * n_aug_ + 1);
 
   // predicted sigma points matrix
-  Xsig_pred_ = MatrixXd(n_aug_, 2 * n_aug_ + 1);
+  Xsig_pred_ = MatrixXd(n_x_, 2 * n_aug_ + 1);
 
   // Weights of sigma points
   weights_ = VectorXd(2 * n_aug_ + 1);
@@ -166,14 +166,19 @@ void UKF::ProcessMeasurement(MeasurementPackage meas_package) {
   PredictMeanAndCovariance();
 
   if (meas_package.sensor_type_ == MeasurementPackage::RADAR) {
-
+    PredictRadarMeasurement();
   } else if (meas_package.sensor_type_ == MeasurementPackage::LASER) {
-   
+
   }
   /*****************************************************************************
   *  Update
   ****************************************************************************/
 
+  if (meas_package.sensor_type_ == MeasurementPackage::RADAR) {
+    UpdateRadar(meas_package);
+  } else if (meas_package.sensor_type_ == MeasurementPackage::LASER) {
+    UpdateLidar(meas_package);
+  }
 
 }
 
@@ -386,4 +391,59 @@ void UKF::UpdateRadar(MeasurementPackage meas_package) {
 
   You'll also need to calculate the radar NIS.
   */
+  // set measurement dimension, radar can measure r, phi, and r_dot
+  int n_z = 3;
+
+  // Create vector for incoming radar measurement
+  VectorXd z = meas_package.raw_measurements_;
+
+  // create matrix for cross correlation Tc
+  MatrixXd Tc = MatrixXd(n_x_, n_z);
+
+  // calculate cross correlation matrix
+  Tc.fill(0.0);
+  for (int i = 0; i < 2 * n_aug_ + 1; i++) {  //2n+1 simga points
+
+    // residual
+    VectorXd z_diff = Zsig_.col(i) - z_pred_;
+
+    // angle normalization
+    while (z_diff(1) > M_PI) z_diff(1) -= 2. * M_PI;
+    while (z_diff(1) < -M_PI) z_diff(1) += 2. * M_PI;
+
+    // state difference
+    VectorXd x_diff = Xsig_pred_.col(i) - x_;
+
+    // angle normalization
+    while (x_diff(3) > M_PI) {
+      x_diff(3) -= 2. * M_PI;
+    }
+    while (x_diff(3) < -M_PI) {
+      x_diff(3) += 2. * M_PI;
+    }
+
+    Tc = Tc + weights_(i) * x_diff * z_diff.transpose();
+  }
+
+  // Kalman gain K;
+  MatrixXd K = Tc * S_.inverse();
+
+  // residual
+  VectorXd z_diff = z - z_pred_;
+
+  // angle normalization
+  while (z_diff(1) > M_PI) {
+    z_diff(1) -= 2. * M_PI;
+  }
+  while (z_diff(1) < -M_PI) {
+    z_diff(1) += 2. * M_PI;
+  }
+
+  // update state mean and covariance matrix
+  x_ = x_ + K * z_diff;
+  P_ = P_ - K * S_ * K.transpose();
+
+  // print result
+  std::cout << "Updated state x_: " << std::endl << x_ << std::endl;
+  std::cout << "Updated state covariance P_: " << std::endl << P_ << std::endl;
 }
