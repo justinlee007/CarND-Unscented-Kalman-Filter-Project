@@ -38,14 +38,26 @@ public:
   // state covariance matrix
   MatrixXd P_;
 
-  // predicted sigma points matrix
-  MatrixXd Xsig_pred_;
+  // Augmented sigma point matrix
+  MatrixXd Xsig_aug_;
 
   // Weights of sigma points
   VectorXd weights_;
 
+  // Predicted sigma points matrix
+  MatrixXd Xsig_pred_;
+
+  // Predicted measurement state
+  VectorXd z_pred_ ;
+
+  // Predicted measurement covariance
+  MatrixXd S_;
+
+  // Predicted measurement sigma points
+  MatrixXd Zsig_;
+
   // time when the state is true, in us
-  long time_us_;
+  long long time_us_;
 
   // Process noise standard deviation longitudinal acceleration in m/s^2
   double std_a_;
@@ -74,6 +86,9 @@ public:
   // the current NIS for laser
   double NIS_laser_;
 
+  // previous timestamp
+  long previous_timestamp_;
+
   /**
    * Constructor
    */
@@ -91,11 +106,19 @@ public:
   void ProcessMeasurement(MeasurementPackage meas_package);
 
   /**
-   * Prediction Predicts sigma points, the state, and the state covariance
-   * matrix
+   * Creates augmented sigma points
+   */
+  void AugmentedSigmaPoints();
+
+  /**
+   *
    * @param delta_t Time between k and k+1 in s
    */
-  void Prediction(double delta_t);
+  void SigmaPointPrediction(double delta_t);
+
+  void PredictMeanAndCovariance();
+
+  void PredictRadarMeasurement();
 
   /**
    * Updates the state and the state covariance matrix using a laser measurement
@@ -108,6 +131,7 @@ public:
    * @param meas_package The measurement at k+1
    */
   void UpdateRadar(MeasurementPackage meas_package);
+
 };
 
 #endif /* UKF_H */
