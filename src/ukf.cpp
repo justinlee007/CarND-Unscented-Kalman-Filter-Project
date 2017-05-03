@@ -13,7 +13,7 @@ UKF::UKF() {
   is_initialized_ = false;
 
   // if this is false, laser measurements will be ignored (except during init)
-  use_laser_ = true;
+  use_laser_ = false;
 
   // if this is false, radar measurements will be ignored (except during init)
   use_radar_ = true;
@@ -94,13 +94,11 @@ UKF::~UKF() {}
  * either radar or laser.
  */
 void UKF::ProcessMeasurement(MeasurementPackage meas_package) {
-  /**
-  TODO:
-
-  Complete this function! Make sure you switch between lidar and radar
-  measurements.
-  */
-
+  if (meas_package.sensor_type_ == MeasurementPackage::RADAR && !use_radar_) {
+    return;
+  } else if (meas_package.sensor_type_ == MeasurementPackage::LASER && !use_laser_) {
+    return;
+  }
 
   /*****************************************************************************
    *  Initialization
@@ -168,7 +166,7 @@ void UKF::ProcessMeasurement(MeasurementPackage meas_package) {
   if (meas_package.sensor_type_ == MeasurementPackage::RADAR) {
     PredictRadarMeasurement();
   } else if (meas_package.sensor_type_ == MeasurementPackage::LASER) {
-
+    PredictLidarMeasurement();
   }
   /*****************************************************************************
   *  Update
@@ -298,6 +296,55 @@ void UKF::PredictMeanAndCovariance() {
   std::cout << P_ << std::endl;
 }
 
+void UKF::PredictLidarMeasurement() {
+  // set measurement dimension, lidar can measure x and y
+  int n_z = 2;
+
+  //create matrix for sigma points in measurement space
+  Zsig_ = MatrixXd(n_z, 2 * n_aug_ + 1);
+
+  //transform sigma points into measurement space
+  for (int i = 0; i < 2 * n_aug_ + 1; i++) {  //2n+1 simga points
+
+    // extract values for better readibility
+    double p_x = Xsig_pred_(0, i);
+    double p_y = Xsig_pred_(1, i);
+    double v = Xsig_pred_(2, i);
+    double yaw = Xsig_pred_(3, i);
+
+    // measurement model
+    Zsig_(0, i) = p_x;
+    Zsig_(1, i) = p_y;
+  }
+
+  //mean predicted measurement
+  z_pred_ = VectorXd(n_z);
+  z_pred_.fill(0.0);
+  for (int i = 0; i < 2 * n_aug_ + 1; i++) {
+    z_pred_ = z_pred_ + weights_(i) * Zsig_.col(i);
+  }
+
+  //measurement covariance matrix S
+  S_ = MatrixXd(n_z, n_z);
+  S_.fill(0.0);
+  for (int i = 0; i < 2 * n_aug_ + 1; i++) {  //2n+1 simga points
+    //residual
+    VectorXd z_diff = Zsig_.col(i) - z_pred_;
+
+    //angle normalization
+//    z_diff(1) = SNormalizeAngle(z_diff(1));
+//    z_diff(1) = SNormalizeAngle(z_diff(1));
+
+    S_ = S_ + weights_(i) * z_diff * z_diff.transpose();
+  }
+
+  //add measurement noise covariance matrix
+  MatrixXd R = MatrixXd(n_z, n_z);
+  R << std_laspx_ * std_laspx_, 0,
+      0, std_laspy_ * std_laspy_;
+  S_ = S_ + R;
+}
+
 void UKF::PredictRadarMeasurement() {
   // set measurement dimension, radar can measure r, phi, and r_dot
   int n_z = 3;
@@ -376,6 +423,42 @@ void UKF::UpdateLidar(MeasurementPackage meas_package) {
 
   You'll also need to calculate the lidar NIS.
   */
+
+  // set measurement dimension, lidar can measure x and y
+  int n_z = 2;
+
+  // Create vector for incoming lidar measurement
+  VectorXd z = meas_package.raw_measurements_;
+
+  //calculate cross correlation matrix
+  MatrixXd Tc = MatrixXd(n_x_, n_z);
+  Tc.fill(0.0);
+  for (int i = 0; i < 2 * n_aug_ + 1; i++) {  //2n+1 simga points
+    //residual
+    VectorXd z_diff = Zsig_.col(i) - z_pred_;
+
+    // state difference
+    VectorXd x_diff = Xsig_pred_.col(i) - x_;
+
+    Tc = Tc + weights_(i) * x_diff * z_diff.transpose();
+  }
+
+  //Kalman gain K;
+  MatrixXd K = Tc * S_.inverse();
+
+  //residual
+  VectorXd z_diff = z - z_pred_;
+
+  //update state mean and covariance matrix
+  x_ = x_ + K * z_diff;
+  P_ = P_ - K * S_ * K.transpose();
+
+  // Calculate NIS
+  NIS_laser_ = z_diff.transpose() * S_.inverse() * z_diff;
+
+  // print result
+  std::cout << "Updated state x_: " << std::endl << x_ << std::endl;
+  std::cout << "Updated state covariance P_: " << std::endl << P_ << std::endl;
 }
 
 /**
@@ -442,6 +525,9 @@ void UKF::UpdateRadar(MeasurementPackage meas_package) {
   // update state mean and covariance matrix
   x_ = x_ + K * z_diff;
   P_ = P_ - K * S_ * K.transpose();
+
+  // Calculate NIS
+  NIS_radar_ = z_diff.transpose() * S_.inverse() * z_diff;
 
   // print result
   std::cout << "Updated state x_: " << std::endl << x_ << std::endl;

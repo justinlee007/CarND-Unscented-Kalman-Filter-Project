@@ -118,6 +118,8 @@ public:
 
   void PredictMeanAndCovariance();
 
+  void PredictLidarMeasurement();
+
   void PredictRadarMeasurement();
 
   /**
