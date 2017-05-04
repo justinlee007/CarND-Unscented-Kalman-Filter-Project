@@ -359,7 +359,8 @@ void UKF::PredictRadarMeasurement() {
     double v1 = cos(yaw) * v;
     double v2 = sin(yaw) * v;
 
-    const double c1 = max(0.0001, sqrt(pow(p_x, 2) + pow(p_y, 2)));
+    // avoid division by zero
+    const double c1 = max(0.001, sqrt(pow(p_x, 2) + pow(p_y, 2)));
 
     // measurement model
     Zsig_(0, i) = c1; // rho
