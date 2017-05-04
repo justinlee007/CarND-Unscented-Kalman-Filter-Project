@@ -3,11 +3,9 @@
 #include <iostream>
 #include <sstream>
 #include <vector>
-#include <stdlib.h>
 #include "Eigen/Dense"
 #include "ukf.h"
 #include "ground_truth_package.h"
-#include "measurement_package.h"
 
 using namespace std;
 using Eigen::MatrixXd;
@@ -220,6 +218,9 @@ int main(int argc, char *argv[]) {
   // compute the accuracy (RMSE)
   Tools tools;
   cout << "RMSE" << endl << tools.CalculateRMSE(estimations, ground_truth) << endl;
+
+  cout << endl << "Lidar NIS=" << ukf.NIS_laser_ << endl;
+  cout << "Radar NIS=" << ukf.NIS_radar_ << endl << endl;
 
   // close files
   if (out_file_.is_open()) {
