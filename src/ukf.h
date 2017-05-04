@@ -32,6 +32,8 @@ public:
   // Sigma point spreading parameter
   double lambda_;
 
+  int total_points_;
+
   // state vector: [pos1 pos2 vel_abs yaw_angle yaw_rate] in SI units and rad
   VectorXd x_;
 
@@ -85,9 +87,6 @@ public:
 
   // the current NIS for laser
   double NIS_laser_;
-
-  // previous timestamp
-  long previous_timestamp_;
 
   /**
    * Constructor
